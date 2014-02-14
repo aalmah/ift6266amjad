@@ -3,15 +3,15 @@ import os
 import os.path
 import cPickle
 from exceptions import *
-from segmentaxis import segment_axis
+from scikits.talkbox import segment_axis
 import scipy.stats
 
 class TIMIT(object):
     """
     This class will encapsulate the interactions that we will have with TIMIT.
     You should have the environment variable MUMBLER_DATA_PATH set. One way to 
-    do this is to put 'export MUMBLER_DATA_PATH=/path/to/your/datasets/folder/' 
-    in your .bashrc file so that $MUMBLER_DATA_PATH/readable_timit link to 
+    do this is to put 'export timit=/path/to/your/datasets/folder/' 
+    in your .bashrc file so that $timit link to 
     /data/lisa/data/timit/readable
     
     """
@@ -19,8 +19,7 @@ class TIMIT(object):
         """
         Initialize the TIMIT class. 
         """
-        timit_path = os.path.join(os.environ["MUMBLER_DATA_PATH"], \
-                                  "readable_timit")
+        timit_path = os.path.join(os.environ["timit"])
         
         if os.path.isdir(timit_path):
             self.timit_path = timit_path
@@ -230,7 +229,8 @@ class TIMIT(object):
         n_seq = self.__dict__[subset+"_n_seq"]
         if seq_id >= n_seq:
             raise ValueError("This sequence does not exist.")
-        
+
+                
         # Get the sequence
         wav_seq = self.__dict__[subset+"_raw_wav"][seq_id]
         
@@ -243,7 +243,8 @@ class TIMIT(object):
         # the index for "NO_PHONEME" and the other index are shifted by one
         for (phn_start, phn_end, phn) in phn_start_end:
             phn_seq[phn_start:phn_end] = phn+1
-        
+
+                
         # Get the words
         wrd_l_start = self.__dict__[subset+"_seq_to_wrd"][seq_id][0]
         wrd_l_end = self.__dict__[subset+"_seq_to_wrd"][seq_id][1]
@@ -253,7 +254,8 @@ class TIMIT(object):
         # the index for "NO_WORD" and the other index are shifted by one
         for (wrd_start, wrd_end, wrd) in wrd_start_end:
             wrd_seq[wrd_start:wrd_end] = wrd+1
-        
+
+
         # Binary variable announcing the end of the word or phoneme
         end_phn = np.zeros_like(phn_seq)
         end_wrd = np.zeros_like(wrd_seq)
@@ -266,6 +268,8 @@ class TIMIT(object):
         
         end_phn[-1] = 1
         end_wrd[-1] = 1
+
+        
         
         # Find the speaker id
         spkr_id = self.__dict__[subset+"_spkr"][seq_id]
@@ -274,22 +278,34 @@ class TIMIT(object):
         
         # Segment into frames
         wav_seq = segment_axis(wav_seq, frame_length, overlap)
-        
-        # Take the most occurring phoneme in a sequence
+
+                
+        # Take the most occurring phoneme in a frame
         phn_seq = segment_axis(phn_seq, frame_length, overlap)
         phn_seq = scipy.stats.mode(phn_seq, axis=1)[0].flatten()
         phn_seq = np.asarray(phn_seq, dtype='int')
-        
-        # Take the most occurring word in a sequence
+
+                
+        # Take the most occurring word in a frame
         wrd_seq = segment_axis(wrd_seq, frame_length, overlap)
         wrd_seq = scipy.stats.mode(wrd_seq, axis=1)[0].flatten()
         wrd_seq = np.asarray(wrd_seq, dtype='int')
-        
+
+                
         # Announce the end if and only if it was announced in the current frame
         end_phn = segment_axis(end_phn, frame_length, overlap)
+        
+        # Do a check that we don't have two phone change in one frame
+        # this means the frame size is probably very big
+        end_phn_count = end_phn.sum(axis=1)
+        if np.any(end_phn_count > 1):
+            raise AssertionError("The frame size is too big !")
         end_phn = end_phn.max(axis=1)
         end_wrd = segment_axis(end_wrd, frame_length, overlap)
         end_wrd = end_wrd.max(axis=1)
+
+        
+        
         
         return [wav_seq, phn_seq, end_phn, wrd_seq, end_wrd, spkr_info]
     
@@ -466,3 +482,5 @@ class TIMIT(object):
         assert subset+"_intervals_seq" in self.__dict__.keys()
         
         return self.__dict__[subset+"_intervals_seq"][-1]
+
+    
