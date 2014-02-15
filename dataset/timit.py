@@ -297,9 +297,9 @@ class TIMIT(object):
         
         # Do a check that we don't have two phone change in one frame
         # this means the frame size is probably very big
-        end_phn_count = end_phn.sum(axis=1)
-        if np.any(end_phn_count > 1):
-            raise AssertionError("The frame size is too big !")
+        # end_phn_count = end_phn.sum(axis=1)
+        # if np.any(end_phn_count > 1):
+        #     raise AssertionError("The frame size is too big !")
         end_phn = end_phn.max(axis=1)
         end_wrd = segment_axis(end_wrd, frame_length, overlap)
         end_wrd = end_wrd.max(axis=1)
