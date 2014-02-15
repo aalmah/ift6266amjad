@@ -1,4 +1,6 @@
 import dataset.timit
+import utils
+
 import sys
 from scikits.talkbox import segment_axis
 import numpy as np
@@ -19,20 +21,20 @@ class NextSamplePredictor:
         sys.stdout = save_stdout
 
         
-        
 
     def build_data_sets(self,frame_ms=15):
         """build data sets for training/validating/testing the models"""
 
+        print 'loading data...'
         frame_len = frame_ms * SAMPLE_PER_MS
         overlap = frame_len - 1
 
         wav_seqs = self.dataset.train_raw_wav[0:10]
-        
+        norm_seqs = utils.normalize(wav_seqs)
         
         # Segment into frames
         samples = map(lambda seq: segment_axis(seq, frame_len, overlap),
-                      wav_seqs)
+                      norm_seqs)
          # stack all data in one matrix, each row is a frame
         data = np.vstack(samples)
         # shuffle the frames so we can assume data is IID
@@ -57,11 +59,14 @@ class NextSamplePredictor:
         test_x = data[9*chunk:,:-1]
         test_y = data[9*chunk:,-1]
 
+        
         # print train_x.shape,train_y.shape,valid_x.shape,valid_y.shape
         # print test_x.shape,test_y.shape
-
-        return [(train_x,train_y),(valid_x,valid_y),
-                (test_x,test_y)]
+        print 'Done'
+        
+        return  utils.shared_dataset((train_x,train_y)),\
+                utils.shared_dataset((valid_x,valid_y)),\
+                utils.shared_dataset((test_x,test_y))
     
 if __name__ == "__main__":
     
