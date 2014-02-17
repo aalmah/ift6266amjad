@@ -2,9 +2,9 @@ import numpy as np
 import sys
 import dataset.timit
 import theano
+import theano.tensor as T
 
-
-dtype = theano.config.floatX
+dtype = 'float32'
 
 def data_avg_std(dataset):
     elems = np.hstack((np.hstack(dataset.train_raw_wav),
@@ -48,8 +48,10 @@ def shared_dataset(data_xy, borrow=True):
     data_x, data_y = data_xy
     # shared_x = theano.shared(np.asarray(data_x,dtype=dtype),borrow=borrow)
     # shared_y = theano.shared(np.asarray(data_y,dtype=dtype),borrow=borrow)
-    shared_x = theano.shared(data_x,borrow=borrow)
-    shared_y = theano.shared(data_y,borrow=borrow)
+    shared_x = theano.shared(np.asarray(data_x,
+                                        dtype=dtype),borrow=borrow)
+    shared_y = theano.shared(np.asarray(data_y,
+                                        dtype=dtype),borrow=borrow)
    
     return shared_x, shared_y
 

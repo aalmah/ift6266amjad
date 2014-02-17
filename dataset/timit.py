@@ -1,3 +1,5 @@
+"""This class was copied from Laurent Dinh's repo"""
+
 import numpy as np
 import os
 import os.path
@@ -9,7 +11,7 @@ import scipy.stats
 class TIMIT(object):
     """
     This class will encapsulate the interactions that we will have with TIMIT.
-    You should have the environment variable MUMBLER_DATA_PATH set. One way to 
+    You should have the environment variable $timit set. One way to 
     do this is to put 'export timit=/path/to/your/datasets/folder/' 
     in your .bashrc file so that $timit link to 
     /data/lisa/data/timit/readable
@@ -19,7 +21,7 @@ class TIMIT(object):
         """
         Initialize the TIMIT class. 
         """
-        timit_path = os.path.join(os.environ["timit"])
+        timit_path = os.environ["timit"]
         
         if os.path.isdir(timit_path):
             self.timit_path = timit_path
