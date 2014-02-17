@@ -55,7 +55,6 @@ class NextSamplePredictor:
                                          n_in=n_hidden,
                                          n_out=n_out,
                                          activation=T.tanh)
-                                         #activation=None)
         
         # L1 norm ; one regularization option is to enforce L1 norm to
         # be small
