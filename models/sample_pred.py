@@ -107,8 +107,7 @@ def build_data_sets(frame_len):
     # creating wrapper object for TIMIT dataset
     dataset = TIMIT()
     dataset.load("train")
-    dataset.load("valid")
-    # dataset.load("test")
+    
     sys.stdout = save_stdout
 
     overlap = frame_len - 1
