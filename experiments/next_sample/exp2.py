@@ -22,7 +22,7 @@ class MLPFramePredictor:
     Inspired from Theano MLP tutorial http://deeplearning.net/tutorial/mlp.html
     """
 
-    def __init__(self, input, rng, n_in, n_hidden_list, actvations_list,
+    def __init__(self, input, rng, n_in, n_hidden_list, activations_list,
                  n_out):
         """Initialize the parameters for the multilayer perceptron
 
@@ -47,8 +47,15 @@ class MLPFramePredictor:
 
         # We are dealing with multiple hidden layers MLP
         self.hiddenLayer1 = NetworkLayer(rng=rng, input=input,
-                                       n_in=n_in, n_out=n_hidden,
-                                       activation=T.tanh)
+                                         n_in=n_in, n_out=n_hidden_list[0],
+                                         activation=activations_list[0])
+
+        if len(n_hidden_list) > 1:
+
+            h_layers = {}
+            for n_hidden in n_hidden_list[1:]:
+                h_layers['hiddenLayer%d'%n_hidden] = \
+                NetworkLayer(rng=rng)
 
         # The logistic regression layer gets as input the hidden units
         # of the hidden layer
