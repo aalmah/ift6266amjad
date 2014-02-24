@@ -22,8 +22,8 @@ class MLPFramePredictor:
     Inspired from Theano MLP tutorial http://deeplearning.net/tutorial/mlp.html
     """
 
-    def __init__(self, input, rng, n_in, n_hidden_list, activations_list,
-                 n_out):
+    def __init__(self, input, rng, n_in, n_hiddens, h_activations,
+                 n_out, out_activation):
         """Initialize the parameters for the multilayer perceptron
 
         :type rng: numpy.random.RandomState
@@ -33,11 +33,11 @@ class MLPFramePredictor:
         :param n_in: number of input units, the dimension of the space in
         which the datapoints lie
 
-        :type n_hidden_list: list of int
-        :param n_hidden_list: a list of number of units in each hidden layer
+        :type n_hiddens: list of int
+        :param n_hiddens: a list of number of units in each hidden layer
 
-        :type activations_list: list of lambdas
-        :param n_hidden_list: a list of activations used in each hidden layer
+        :type activations: list of lambdas
+        :param n_hiddens: a list of activations used in each hidden layer
         
         :type n_out: int
         :param n_out: number of output units, the dimension of the space in
@@ -46,24 +46,27 @@ class MLPFramePredictor:
         """
 
         # We are dealing with multiple hidden layers MLP
-        self.hiddenLayer1 = NetworkLayer(rng=rng, input=input,
-                                         n_in=n_in, n_out=n_hidden_list[0],
-                                         activation=activations_list[0])
+        layer1 = NetworkLayer(rng=rng, input=input,
+                              n_in=n_in, n_out=n_hiddens[0],
+                              activation=h_activations[0])
+        
+        h_layers = [('hiddenLayer1',layer1)]
+        
+        for i in range(1,n_hiddens[1:]):
+            h_layers['hiddenLayer%d' % (i+1)] = \
+                    NetworkLayer(rng=rng, input=h_layers[i-1][1].output,
+                                 n_in=n_hiddens[i-1], n_out=n_hiddens[i],
+                                 activation=h_activations[i])
 
-        if len(n_hidden_list) > 1:
-
-            h_layers = {}
-            for n_hidden in n_hidden_list[1:]:
-                h_layers['hiddenLayer%d'%n_hidden] = \
-                NetworkLayer(rng=rng)
-
-        # The logistic regression layer gets as input the hidden units
+        self.__dict__update(dict(h_layers))
+        
+        # The output layer gets as input the hidden units
         # of the hidden layer
         self.outputLayer =  NetworkLayer(rng=rng,
-                                         input=self.hiddenLayer.output,
-                                         n_in=n_hidden,
+                                         input=h_layers[-1][1].output,
+                                         n_in=n_hiddens[-1],
                                          n_out=n_out,
-                                         activation=T.tanh)
+                                         activation=out_activation)
         
         # L1 norm ; one regularization option is to enforce L1 norm to
         # be small
@@ -78,30 +81,14 @@ class MLPFramePredictor:
         # the prediction is simply the output of the output layer
         self.y_pred = self.outputLayer.output
         
-        # the parameters of the model are the parameters of the two layer it is
-        # made out of
-        self.params = self.hiddenLayer.params + self.outputLayer.params
+        # the parameters of the model are the parameters of the all layers it
+        # is made out of
+        params = self.outputLayer.params
+        for layer in h_layers:
+            params.extend(layer.params)
+        self.params = params
 
-    
-    def save_model(self,filename='sample_pred.save',
-                   output_folder='output_folder'):
-        """
-        This function pickles the paramaters in a file for later usage
-        """
-        storage_file = open(os.path.join(output_folder,filename), 'wb')
-        cPickle.dump(self, storage_file , protocol=cPickle.HIGHEST_PROTOCOL)
-        storage_file.close()
 
-        
-    def load_model(filename='sample_pred.save',
-                   output_folder='output_folder'):
-        """
-        This function loads pickled paramaters from a file
-        """
-        storage_file = open(os.path.join(output_folder,filename), 'rb')
-        model = cPickle.load(storage_file)
-        storage_file.close()
-        return model
 
         
 def build_data_sets(frame_len):
@@ -287,11 +274,22 @@ def train_test_model(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001,
     
 if __name__ == "__main__":
     
-    SAMPLE_PER_MS = 16
-    FRAME_LEN_MS = 15
+    # SAMPLE_PER_MS = 16
+    # FRAME_LEN_MS = 15
     
-    frame_len = FRAME_LEN_MS * SAMPLE_PER_MS
-    build_data_sets(frame_len)
+    # frame_len = FRAME_LEN_MS * SAMPLE_PER_MS
+    # build_data_sets(frame_len)
     # train_test_model(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001,
     #                  n_epochs=100, batch_size=1000, frame_len=frame_len,
     #                  n_hidden=500, output_folder='test_output')
+
+    rng = np.random.RandomState(1234)
+    x = T.fmatrix('x')   # input data
+    
+    frame_pred = MLPFramePredictor(rng=rng, input=x,
+                                   n_in=240,
+                                   n_hiddens=[300,300,300],
+                                   h_activations=[T.]
+                                   n_out=1)
+    
+    
