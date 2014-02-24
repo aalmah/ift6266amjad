@@ -13,11 +13,7 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano import config
-from experiments.nn import NetworkLayer,MSE
-
-import logging
-logger = logging.getLogger('debug-logger')
-#logger.propagate = False
+from nn import NetworkLayer,MSE
 
 
 
@@ -59,6 +55,7 @@ class NextSamplePredictor:
                                          n_in=n_hidden,
                                          n_out=n_out,
                                          activation=T.tanh)
+                                         #activation=None)
         
         # L1 norm ; one regularization option is to enforce L1 norm to
         # be small
@@ -76,6 +73,9 @@ class NextSamplePredictor:
         # the parameters of the model are the parameters of the two layer it is
         # made out of
         self.params = self.hiddenLayer.params + self.outputLayer.params
+
+
+
 
     
     def save_model(self,filename='sample_pred.save',
@@ -98,7 +98,6 @@ class NextSamplePredictor:
         storage_file.close()
         return model
 
-        
 def build_data_sets(frame_len):
     """builds data sets for training/validating/testing the models"""
     
@@ -110,7 +109,8 @@ def build_data_sets(frame_len):
     # creating wrapper object for TIMIT dataset
     dataset = TIMIT()
     dataset.load("train")
-    
+    dataset.load("valid")
+    # dataset.load("test")
     sys.stdout = save_stdout
 
     overlap = frame_len - 1
@@ -121,12 +121,21 @@ def build_data_sets(frame_len):
     # Segment into frames
     samples = map(lambda seq: segment_axis(seq, frame_len, overlap),
                   norm_seqs)
-
-    # stack all data in one matrix, each row is a frame
+    # samples = map(lambda seq: segment_axis(seq, frame_len, overlap),
+    #               wav_seqs)
+     # stack all data in one matrix, each row is a frame
     data = np.vstack(samples)
     # shuffle the frames so we can assume data is IID
     np.random.seed(123)
     data = np.random.permutation(data)
+    
+    # print len(samples)
+    # count = 0
+    # for i in range(10):
+    #     print samples[i].shape
+    #     count += samples[i].shape[0]
+    # print count
+    # print data.shape
 
     # take 10% for test, 10% for valid, and 80% for training
     chunk = data.shape[0] / 10
@@ -138,9 +147,8 @@ def build_data_sets(frame_len):
     test_x = data[9*chunk:,:-1]
     test_y = data[9*chunk:,-1]
 
-    print 'train_x shape', train_x.shape
-    print 'train_y shape', train_y.shape
-
+    # print train_x.shape,train_y.shape,valid_x.shape,valid_y.shape
+    # print test_x.shape,test_y.shape
     print 'Done'
     print 'There are %d training samples'%train_x.shape[0]
     print 'There are %d validation samples'%valid_x.shape[0]
@@ -178,6 +186,8 @@ def train_test_model(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001,
 
     """
     
+    #config.compute_test_value = 'raise'
+    
     
     rng = np.random.RandomState(1234)
     index = T.iscalar()  # index to a [mini]batch
@@ -189,9 +199,16 @@ def train_test_model(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001,
     train_set_x, train_set_y = datasets[0]
     valid_set_x, valid_set_y = datasets[1]
 
-    # compute number of minibatches for training, validation and testing
+    # # compute number of minibatches for training, validation and testing
     n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
     n_valid_batches = valid_set_x.get_value(borrow=True).shape[0] / batch_size
+
+    # #debugging
+    #import pdb; pdb.set_trace()
+    # index.tag.test_value = 1
+    # x.tag.test_value = train_set_x.get_value()[100:200]
+    # y.tag.test_value = train_set_y.get_value()[100:200]
+
 
     
     ######################
@@ -227,6 +244,12 @@ def train_test_model(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001,
     for param, gparam in zip(model.params, gparams):
         updates.append((param, param - learning_rate * gparam))
 
+    # train_model = theano.function(inputs=[index], outputs=cost,
+    #         updates=updates,
+    #         givens={
+    #             x: train_set_x[index * batch_size:(index + 1) * batch_size],
+    #             y: train_set_y[index * batch_size:(index + 1) * batch_size]},
+    #         mode='DebugMode')
 
     train_model = theano.function(inputs=[index], outputs=cost,
             updates=updates,
@@ -286,7 +309,8 @@ if __name__ == "__main__":
     FRAME_LEN_MS = 15
     
     frame_len = FRAME_LEN_MS * SAMPLE_PER_MS
-    build_data_sets(frame_len)
-    # train_test_model(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001,
-    #                  n_epochs=100, batch_size=1000, frame_len=frame_len,
-    #                  n_hidden=500, output_folder='test_output')
+
+    train_test_model(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001,
+                     n_epochs=100, batch_size=1000, frame_len=frame_len,
+                     n_hidden=500, output_folder='test_output')
+    

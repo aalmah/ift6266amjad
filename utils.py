@@ -24,12 +24,19 @@ def normalize(wav_seqs):
     elems = np.hstack(wav_seqs)
     felems = elems.astype(dtype)
     
-    std = np.std(felems)
-    avg = np.mean(felems)
-    norm_seqs = np.asarray([(seq.astype('float32')-avg)/std \
-                            for seq in wav_seqs])
-    assert norm_seqs.shape == wav_seqs.shape
+    # std = np.std(felems)
+    # avg = np.mean(felems)
+    # norm_seqs = np.asarray([(seq.astype('float32')-avg)/std \
+    #                         for seq in wav_seqs])
+    # assert norm_seqs.shape == wav_seqs.shape
 
+    max_e = np.max(np.abs(felems))
+    
+    norm_seqs = np.asarray([seq.astype('float32')/max_e for seq in wav_seqs])
+    #make sure all values in [-1,1]
+    for seq in norm_seqs:
+        assert np.all(seq < 1.001) and np.all( seq > -1.001)
+        
     return norm_seqs
     
 

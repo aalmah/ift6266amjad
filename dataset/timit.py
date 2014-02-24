@@ -34,6 +34,7 @@ class TIMIT(object):
         
         spkrinfo_path = os.path.join(self.timit_path, "spkrinfo.npy")
         phns_path = os.path.join(self.timit_path, "reduced_phonemes.pkl")
+        #phns_path = os.path.join(self.timit_path, "phonemes.pkl")
         wrds_path = os.path.join(self.timit_path, "words.pkl")
         spkrfeat_path = os.path.join(self.timit_path, "spkr_feature_names.pkl")
         spkrid_path = os.path.join(self.timit_path, "speakers_ids.pkl")
@@ -86,6 +87,7 @@ class TIMIT(object):
         print "Building paths...", 
         raw_wav_path = os.path.join(self.timit_path, subset+"_x_raw.npy")
         phn_path = os.path.join(self.timit_path, subset+"_redux_phn.npy")
+        #phn_path = os.path.join(self.timit_path, subset+"_phn.npy")
         seq_to_phn_path = os.path.join(self.timit_path, \
                                        subset+"_seq_to_phn.npy")
         wrd_path = os.path.join(self.timit_path, subset+"_wrd.npy")
@@ -232,7 +234,9 @@ class TIMIT(object):
         if seq_id >= n_seq:
             raise ValueError("This sequence does not exist.")
 
-                
+        import pdb; pdb.set_trace()
+
+            
         # Get the sequence
         wav_seq = self.__dict__[subset+"_raw_wav"][seq_id]
         
@@ -257,6 +261,7 @@ class TIMIT(object):
         for (wrd_start, wrd_end, wrd) in wrd_start_end:
             wrd_seq[wrd_start:wrd_end] = wrd+1
 
+        import pdb; pdb.set_trace()
 
         # Binary variable announcing the end of the word or phoneme
         end_phn = np.zeros_like(phn_seq)
@@ -271,7 +276,7 @@ class TIMIT(object):
         end_phn[-1] = 1
         end_wrd[-1] = 1
 
-        
+        import pdb; pdb.set_trace()
         
         # Find the speaker id
         spkr_id = self.__dict__[subset+"_spkr"][seq_id]
@@ -296,12 +301,6 @@ class TIMIT(object):
                 
         # Announce the end if and only if it was announced in the current frame
         end_phn = segment_axis(end_phn, frame_length, overlap)
-        
-        # Do a check that we don't have two phone change in one frame
-        # this means the frame size is probably very big
-        # end_phn_count = end_phn.sum(axis=1)
-        # if np.any(end_phn_count > 1):
-        #     raise AssertionError("The frame size is too big !")
         end_phn = end_phn.max(axis=1)
         end_wrd = segment_axis(end_wrd, frame_length, overlap)
         end_wrd = end_wrd.max(axis=1)

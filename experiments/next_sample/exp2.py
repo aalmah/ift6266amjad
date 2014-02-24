@@ -15,18 +15,15 @@ import theano.tensor as T
 from theano import config
 from experiments.nn import NetworkLayer,MSE
 
-import logging
-logger = logging.getLogger('debug-logger')
-#logger.propagate = False
 
-
-
-class NextSamplePredictor:
-    """Multi-Layer Perceptron for predicting the next acoustic sample -
-    inspired from Theano MLP tutorial http://deeplearning.net/tutorial/mlp.html
+class MLPFramePredictor:
+    """Multi-Layer Perceptron for predicting the next acoustic samples frame
+    given previous samples and window of phonemes.
+    Inspired from Theano MLP tutorial http://deeplearning.net/tutorial/mlp.html
     """
 
-    def __init__(self, input, rng, n_in, n_hidden, n_out):
+    def __init__(self, input, rng, n_in, n_hidden_list, actvations_list,
+                 n_out):
         """Initialize the parameters for the multilayer perceptron
 
         :type rng: numpy.random.RandomState
@@ -36,19 +33,20 @@ class NextSamplePredictor:
         :param n_in: number of input units, the dimension of the space in
         which the datapoints lie
 
-        :type n_hidden: int
-        :param n_hidden: number of hidden units
+        :type n_hidden_list: list of int
+        :param n_hidden_list: a list of number of units in each hidden layer
 
+        :type activations_list: list of lambdas
+        :param n_hidden_list: a list of activations used in each hidden layer
+        
         :type n_out: int
         :param n_out: number of output units, the dimension of the space in
         which the labels lie
 
         """
 
-        # Since we are dealing with a one hidden layer MLP, this will translate
-        # into a NetworkLayer with a tanh activation function connected to the
-        # output layer
-        self.hiddenLayer = NetworkLayer(rng=rng, input=input,
+        # We are dealing with multiple hidden layers MLP
+        self.hiddenLayer1 = NetworkLayer(rng=rng, input=input,
                                        n_in=n_in, n_out=n_hidden,
                                        activation=T.tanh)
 

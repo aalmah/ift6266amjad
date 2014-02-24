@@ -77,4 +77,6 @@ def MSE(y_pred, y):
     :param y: corresponds to a vector that gives the target for each example
     
     """
+    # using dimshuffle to convert the batch output from (batch_size,) to
+    # column vector (batch_size,1) so it aligns with the network output
     return T.mean((y_pred - y.dimshuffle(0,'x')) ** 2)
