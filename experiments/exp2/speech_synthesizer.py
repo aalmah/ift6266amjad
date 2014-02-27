@@ -202,13 +202,7 @@ class SpeechSynthesizer:
 if __name__ == "__main__":
     folder = 'better_results'
     
-    if "insert" in sys.argv:
-        pass
-        #jobman_insert_random(int(sys.argv[2]))
-    elif "view" in sys.argv:
-        #view()
-        pass
-    elif "train" in sys.argv:
+    if "train" in sys.argv:
         synthesizer = SpeechSynthesizer(output_folder=folder)
         synthesizer.train_models()
     elif "test" in sys.argv:
@@ -216,4 +210,5 @@ if __name__ == "__main__":
         synthesizer = SpeechSynthesizer(output_folder=folder)
         synthesizer.set_models(frame_pred=frame_pred)
         synthesizer.generate_speech1()
-    
+    else:
+        print 'specify an argument!'
