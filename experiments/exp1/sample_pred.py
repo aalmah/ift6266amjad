@@ -1,7 +1,7 @@
 from dataset.timit import TIMIT
 
 
-import utils
+from experiments import utils
 import time
 import os.path
 import os
@@ -14,11 +14,6 @@ import theano
 import theano.tensor as T
 from theano import config
 from experiments.nn import NetworkLayer,MSE
-
-import logging
-logger = logging.getLogger('debug-logger')
-#logger.propagate = False
-
 
 
 class NextSamplePredictor:
@@ -71,7 +66,7 @@ class NextSamplePredictor:
                     + (self.outputLayer.W ** 2).sum()
 
         # the prediction is simply the output of the output layer
-        self.y_pred = self.outputLayer.output
+        self.y_pred = T.reshape(self.outputLayer.output, (input.shape[0],))
         
         # the parameters of the model are the parameters of the two layer it is
         # made out of
@@ -145,9 +140,9 @@ def build_data_sets(frame_len):
     print 'There are %d training samples'%train_x.shape[0]
     print 'There are %d validation samples'%valid_x.shape[0]
     
-    return utils.shared_dataset((train_x,train_y)),\
-           utils.shared_dataset((valid_x,valid_y)),\
-           utils.shared_dataset((test_x,test_y))
+    return utils.shared_dataset_xy((train_x,train_y)),\
+           utils.shared_dataset_xy((valid_x,valid_y)),\
+           utils.shared_dataset_xy((test_x,test_y))
 
         
         
@@ -228,7 +223,8 @@ def train_test_model(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001,
         updates.append((param, param - learning_rate * gparam))
 
 
-    train_model = theano.function(inputs=[index], outputs=cost,
+    train_model = theano.function(inputs=[index],
+            outputs=[cost, MSE(y_pred=model.y_pred, y=y)],
             updates=updates,
             givens={
                 x: train_set_x[index * batch_size:(index + 1) * batch_size],
@@ -254,7 +250,7 @@ def train_test_model(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001,
         training_losses = []
         for minibatch_index in xrange(n_train_batches):
 
-            minibatch_avg_cost = train_model(minibatch_index)
+            batch_loss, minibatch_avg_cost = train_model(minibatch_index)
             training_losses.append(minibatch_avg_cost)
                 
         
@@ -286,7 +282,7 @@ if __name__ == "__main__":
     FRAME_LEN_MS = 15
     
     frame_len = FRAME_LEN_MS * SAMPLE_PER_MS
-    build_data_sets(frame_len)
-    # train_test_model(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001,
-    #                  n_epochs=100, batch_size=1000, frame_len=frame_len,
-    #                  n_hidden=500, output_folder='test_output')
+    #build_data_sets(frame_len)
+    train_test_model(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001,
+                     n_epochs=100, batch_size=1000, frame_len=frame_len,
+                     n_hidden=500, output_folder='test_output')

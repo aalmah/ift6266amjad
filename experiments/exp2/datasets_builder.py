@@ -1,9 +1,5 @@
 from dataset.timit import TIMIT
-
-
-import utils
-import os.path
-import os
+from experiments import utils
 import sys
 from scikits.talkbox import segment_axis
 import numpy as np
@@ -152,16 +148,5 @@ if __name__ == "__main__":
     build_data_sets(dataset, 'train', n_spkr, n_utts,
                     in_samples, out_samples, shift,
                     win_width,shuffle)
-
-    # n_spkr = 1
-    # n_utts = 1
-    # shuffle = False
-    # build_data_sets(dataset, 'valid', n_spkr, n_utts,
-    #                 in_samples, out_samples, shift,
-    #                 win_width,shuffle)
-    
-    # train_test_model(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001,
-    #                  n_epochs=100, batch_size=1000, frame_len=frame_len,
-    #                  n_hidden=500, output_folder='test_output')
 
     

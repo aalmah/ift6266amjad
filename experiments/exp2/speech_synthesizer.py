@@ -8,7 +8,7 @@ import theano.tensor as T
 from experiments.nn import MSE, MLP
 from datasets_builder import build_data_sets
 import scipy.io.wavfile as wave
-import utils
+from experiments import utils
 
 class SpeechSynthesizer:
     """Multi-Layer Perceptron based speech synthesizer.
@@ -26,6 +26,7 @@ class SpeechSynthesizer:
 
         self.input_size = in_samples + win_width*39
         self.output_size = out_samples
+        self.output_folder = output_folder
 
         # creating wrapper object for TIMIT dataset
         save_stdout = sys.stdout
@@ -113,7 +114,7 @@ class SpeechSynthesizer:
     
     
         frame_cost = MSE(y_pred=self.frame_pred.y_pred, y=y1) \
-                     + L2_reg * frame_pred.L2_sqr
+                     + L2_reg * self.frame_pred.L2_sqr
 
 
         total_training_costs, total_validation_costs = \
@@ -166,34 +167,53 @@ class SpeechSynthesizer:
         prev_frame = np.random.normal(loc=0.0, scale=1.0e-3,
                                       size=(self.in_samples,))
 
-
         output_signal = np.zeros(valid_x.shape[0]*self.shift, dtype='float32')
+        
         current_frame = np.zeros((self.input_size), dtype='float32')
         
         for i in range(valid_x.shape[0]):
+            
             current_win = valid_x[i][self.in_samples:]
             current_frame[:self.in_samples] = prev_frame
             current_frame[self.in_samples:] = current_win
 
             predicted_frame = \
                     get_next_frame(current_frame.reshape(1,self.input_size))
+
             output_signal[i*self.shift:i*self.shift+self.shift] =\
                              predicted_frame[0][:self.shift]
 
             prev_frame = np.roll(prev_frame, -self.shift)
             prev_frame[-self.shift:] = predicted_frame[0][:self.shift]
 
+
         
         output_signal = output_signal * utils.MAX_SIGNAL_AMP
-        wave.write('generated_speech.wav', 16000, output_signal.astype('int16'))
-        print 'Done with generation!'
+        
+        np.save(os.path.join(self.output_folder,'generated_speech'),
+                output_signal)
+        wave.write(os.path.join(self.output_folder,'generated_speech.wav'),
+                   16000, output_signal.astype('int16'))
+        
+        print 'Done with generation test!'
 
         
     
 if __name__ == "__main__":
     folder = 'better_results'
-    frame_pred = MLP.load_model(output_folder=folder)
-    synthesizer = SpeechSynthesizer(output_folder=folder)
-    synthesizer.set_models(frame_pred=frame_pred)
-    synthesizer.generate_speech1()
+    
+    if "insert" in sys.argv:
+        pass
+        #jobman_insert_random(int(sys.argv[2]))
+    elif "view" in sys.argv:
+        #view()
+        pass
+    elif "train" in sys.argv:
+        synthesizer = SpeechSynthesizer(output_folder=folder)
+        synthesizer.train_models()
+    elif "test" in sys.argv:
+        frame_pred = MLP.load_model(output_folder=folder)
+        synthesizer = SpeechSynthesizer(output_folder=folder)
+        synthesizer.set_models(frame_pred=frame_pred)
+        synthesizer.generate_speech1()
     

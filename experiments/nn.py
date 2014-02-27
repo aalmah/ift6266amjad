@@ -157,6 +157,8 @@ class MLP(object):
         """Train the MLP using SGD"""
 
         index = T.iscalar()  # index to a [mini]batch
+        lr = T.scalar() # learning rate symbolic
+
         #index.tag.test_value = 1
         gparams = []
         for param in self.params:
@@ -165,13 +167,19 @@ class MLP(object):
 
         updates = []
 
+        
         for param, gparam in zip(self.params, gparams):
-            updates.append((param, param - learning_rate * gparam))
+            updates.append((param, param - gparam * \
+                            T.cast(lr,dtype=theano.config.floatX)))
+        
+
+        # for param, gparam in zip(self.params, gparams):
+        #     updates.append((param, param - learning_rate * gparam))
 
         # from theano.printing import debugprint
         # from theano.printing import min_informative_str
         
-        train_model = theano.function(inputs=[index],
+        train_model = theano.function(inputs=[index, lr],
             outputs=[training_loss,MSE(y_pred=self.y_pred, y=y)],
             updates=updates,
             givens={
@@ -199,13 +207,27 @@ class MLP(object):
 
         total_training_costs = []
         total_validation_costs = []
-    
+
+        lr_time = 0
+        lr_step = learning_rate / ((train_x.get_value().shape[0]*1.0/batch_size)*(n_epochs-30))
+        lr_val = learning_rate
+        
         while (epoch < n_epochs):
             epoch = epoch + 1
             epoch_training_costs = []
             #import pdb; pdb.set_trace()
             for minibatch_index in xrange(n_train_batches):
-                loss_value,minibatch_avg_cost = train_model(minibatch_index)
+                
+                # linear annealing after 30 epochs...
+                if epoch > 30:
+                    # lr_val = learning_rate / (1.0+lr_time)
+                    # lr_time = lr_time + 1
+                    lr_val = lr_val - lr_step
+                else:
+                    lr_val = learning_rate
+                
+                loss_value,minibatch_avg_cost = \
+                                train_model(minibatch_index, lr_val)
                 epoch_training_costs.append(minibatch_avg_cost)
                         
             this_training_cost = np.mean(epoch_training_costs)

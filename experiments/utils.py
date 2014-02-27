@@ -40,6 +40,15 @@ def shared_dataset(data, borrow=True):
    
     return shared_data
 
+def shared_dataset_xy(data_xy, borrow=True):
+    """ Function that loads the dataset into shared variables
+    """
+    data_x , data_y = data_xy
+    shared_data_x = theano.shared(np.asarray(data_x,dtype=dtype),borrow=borrow)
+    shared_data_y = theano.shared(np.asarray(data_y,dtype=dtype),borrow=borrow)
+   
+    return shared_data_x, shared_data_y
+
     
 if __name__ == "__main__":
     save_stdout = sys.stdout
