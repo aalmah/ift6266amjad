@@ -2,19 +2,12 @@ from dataset.timit import TIMIT
 
 
 import utils
-import time
 import os.path
 import os
 import sys
-import cPickle
 from scikits.talkbox import segment_axis
 import numpy as np
 
-import theano
-import theano.tensor as T
-from theano import config
-from experiments.nn import NetworkLayer,MSE
-    
         
 def build_data_sets(dataset, subset, n_spkr, n_utts,
                     in_samples, out_samples, shift,
@@ -24,7 +17,7 @@ def build_data_sets(dataset, subset, n_spkr, n_utts,
     print "building %s dataset..."%subset
     
     wav_seqs = dataset.__dict__[subset+"_raw_wav"][0:n_utts*n_spkr]
-    norm_seqs = wav_seqs #utils.normalize(wav_seqs)
+    norm_seqs = utils.normalize(wav_seqs)
 
     seqs_to_phns = dataset.__dict__[subset+"_seq_to_phn"][0:n_utts*n_spkr]
     frame_len = in_samples + out_samples
@@ -34,12 +27,12 @@ def build_data_sets(dataset, subset, n_spkr, n_utts,
     seqs_phn_info = []
     seqs_phn_shift = []
 
-    
+        
     # CAUTION!: I am using here reduced phone set
     # we can also try using the full set but we must store phn+1
     # because 0 no more refers to 'h#' (no speech)
 
-    for ind in range(len(wav_seqs)):
+    for ind in range(len(norm_seqs)):
         #import pdb; pdb.set_trace()
         wav_seq = norm_seqs[ind]
         phn_seq = seqs_to_phns[ind]
@@ -48,8 +41,12 @@ def build_data_sets(dataset, subset, n_spkr, n_utts,
         # create a matrix with consecutive windows
         # phones are padded by h#, because each window will be shifted once
         # the first phone samples has passed
+
         phones = np.append(phn_start_end[:,2].astype('int16'),
                            np.zeros((1,),dtype='int16'))
+        # phones = np.append(phn_start_end[:,2],
+        #                    np.zeros((1,)))
+
         phn_windows = segment_axis(phones, win_width, win_width-1)
 
         # array that has endings of each phone
@@ -77,7 +74,7 @@ def build_data_sets(dataset, subset, n_spkr, n_utts,
         win_frames = phn_windows[phn_frames]
         seqs_phn_info.append(win_frames)
 
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         # create a window shift for each frame
         shift_frames_aux = np.roll(phn_frames,1)
         shift_frames_aux[0] = 0
@@ -88,14 +85,21 @@ def build_data_sets(dataset, subset, n_spkr, n_utts,
         #import pdb; pdb.set_trace()
     
         
-    #numpimport pdb; pdb.set_trace()
+    #import pdb; pdb.set_trace()
     # stack all data in one matrix, each row is a frame
     samples_data = np.vstack(samples[:])
     phn_data = np.vstack(seqs_phn_info[:])
     shift_data = np.hstack(seqs_phn_shift[:])
 
-    #TODO - convert to one-hot and/or normalize ints
-
+    
+    #convert phone data to one-hot
+    from pylearn2.format.target_format import OneHotFormatter
+    fmt = OneHotFormatter(max_labels=39, dtype='float32')
+    
+    phn_data = fmt.format(phn_data)
+    phn_data = phn_data.reshape(phn_data.shape[0],
+                                phn_data.shape[1]*phn_data.shape[2])
+    
     full_data = np.hstack([samples_data[:,:in_samples], phn_data, #input
                            samples_data[:,in_samples:], #out1
                            shift_data.reshape(shift_data.shape[0],1)]) #out2
@@ -106,26 +110,22 @@ def build_data_sets(dataset, subset, n_spkr, n_utts,
         np.random.seed(123)
         full_data = np.random.permutation(full_data)
 
-    data_x = full_data[:,:in_samples+win_width]
-    data_y1 = full_data[:,in_samples+win_width:-1]
+    
+    data_x = full_data[:,:in_samples+win_width*39]
+    data_y1 = full_data[:,in_samples+win_width*39:-1]
     data_y2 = full_data[:,-1]
     
         
     print 'Done'
     print 'There are %d examples in %s set'%(data_x.shape[0],subset)
 
-    return (data_x,data_y1,data_y2)
+    return utils.shared_dataset(data_x), \
+           utils.shared_dataset(data_y1),\
+           utils.shared_dataset(data_y2)
     
-    # return utils.shared_dataset((train_x,train_y)),\
-    #        utils.shared_dataset((valid_x,valid_y)),\
-    #        utils.shared_dataset((test_x,test_y))
-
     
 if __name__ == "__main__":
     
-    # SAMPLE_PER_MS = 16
-    # FRAME_LEN_MS = 15
-
     
     print 'loading data...'
 
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     out_samples = 50
     shift = 10
     win_width = 2
-    n_spkr = 5
+    n_spkr = 1
     n_utts = 10
     shuffle = True
     # each training example has 'in_sample' inputs and 'out_samples' output
@@ -153,12 +153,12 @@ if __name__ == "__main__":
                     in_samples, out_samples, shift,
                     win_width,shuffle)
 
-    n_spkr = 1
-    n_utts = 1
-    shuffle = False
-    build_data_sets(dataset, 'valid', n_spkr, n_utts,
-                    in_samples, out_samples, shift,
-                    win_width,shuffle)
+    # n_spkr = 1
+    # n_utts = 1
+    # shuffle = False
+    # build_data_sets(dataset, 'valid', n_spkr, n_utts,
+    #                 in_samples, out_samples, shift,
+    #                 win_width,shuffle)
     
     # train_test_model(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001,
     #                  n_epochs=100, batch_size=1000, frame_len=frame_len,

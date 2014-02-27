@@ -6,6 +6,8 @@ import theano.tensor as T
 
 dtype = 'float32'
 
+MAX_SIGNAL_AMP = 18102
+
 def data_avg_std(dataset):
     elems = np.hstack((np.hstack(dataset.train_raw_wav),
                        np.hstack(dataset.valid_raw_wav),
@@ -21,17 +23,8 @@ def data_avg_std(dataset):
     return (avg,std)
 
 def normalize(wav_seqs):
-    elems = np.hstack(wav_seqs)
-    felems = elems.astype(dtype)
     
-    # std = np.std(felems)
-    # avg = np.mean(felems)
-    # norm_seqs = np.asarray([(seq.astype('float32')-avg)/std \
-    #                         for seq in wav_seqs])
-    # assert norm_seqs.shape == wav_seqs.shape
-
-    max_e = np.max(np.abs(felems))
-    
+    max_e = MAX_SIGNAL_AMP
     norm_seqs = np.asarray([seq.astype('float32')/max_e for seq in wav_seqs])
     #make sure all values in [-1,1]
     for seq in norm_seqs:
@@ -40,14 +33,12 @@ def normalize(wav_seqs):
     return norm_seqs
     
 
-def shared_dataset(data_xy, borrow=True):
+def shared_dataset(data, borrow=True):
     """ Function that loads the dataset into shared variables
     """
-    data_x, data_y = data_xy
-    shared_x = theano.shared(np.asarray(data_x,dtype=dtype),borrow=borrow)
-    shared_y = theano.shared(np.asarray(data_y,dtype=dtype),borrow=borrow)
+    shared_data = theano.shared(np.asarray(data,dtype=dtype),borrow=borrow)
    
-    return shared_x, shared_y
+    return shared_data
 
     
 if __name__ == "__main__":
