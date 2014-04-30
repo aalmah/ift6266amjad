@@ -1,3 +1,4 @@
+
 import numpy as np
 import sys
 import dataset.timit
@@ -7,11 +8,14 @@ import theano.tensor as T
 dtype = 'float32'
 
 MAX_SIGNAL_AMP = 18102
+STD = 558
+
 
 def data_avg_std(dataset):
     elems = np.hstack((np.hstack(dataset.train_raw_wav),
                        np.hstack(dataset.valid_raw_wav),
                        np.hstack(dataset.test_raw_wav)))
+    #import pdb; pdb.set_trace()
                       
     felems = elems.astype(dtype)
                       
@@ -23,16 +27,21 @@ def data_avg_std(dataset):
     return (avg,std)
 
 def normalize(wav_seqs):
-    
+    """Normalize data to [-1, 1]"""
     max_e = MAX_SIGNAL_AMP
     norm_seqs = np.asarray([seq.astype('float32')/max_e for seq in wav_seqs])
-    #make sure all values in [-1,1]
+    
     for seq in norm_seqs:
         assert np.all(seq < 1.001) and np.all( seq > -1.001)
         
     return norm_seqs
     
+def standardize(wav_seqs):
+    """Standardize data"""
+    norm_seqs = np.asarray([seq.astype('float32')/STD for seq in wav_seqs])
+    return norm_seqs
 
+    
 def shared_dataset(data, borrow=True):
     """ Function that loads the dataset into shared variables
     """
@@ -56,10 +65,12 @@ if __name__ == "__main__":
     
     dataset = dataset.timit.TIMIT()
     dataset.load("train")
-    dataset.load("valid")
-    dataset.load("test")
+    # dataset.load("valid")
+    # dataset.load("test")
     sys.stdout = save_stdout
 
-    wav_seqs = dataset.train_raw_wav[0:10]
-    normalize(wav_seqs)
+    # wav_seqs = dataset.train_raw_wav[0:10]
+    # normalize(wav_seqs)
+    print data_avg_std(dataset)
+
     

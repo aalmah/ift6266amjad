@@ -1,4 +1,4 @@
-"""
+B1;3400;0c"""
 This script is a collection of objects and methods used for MLPs: inspired from Theano MLP tutorial http://deeplearning.net/tutorial
 """
 __docformat__ = 'restructedtext en'
@@ -172,12 +172,6 @@ class MLP(object):
             updates.append((param, param - gparam * \
                             T.cast(lr,dtype=theano.config.floatX)))
         
-
-        # for param, gparam in zip(self.params, gparams):
-        #     updates.append((param, param - learning_rate * gparam))
-
-        # from theano.printing import debugprint
-        # from theano.printing import min_informative_str
         
         train_model = theano.function(inputs=[index, lr],
             outputs=[training_loss,MSE(y_pred=self.y_pred, y=y)],
@@ -185,16 +179,18 @@ class MLP(object):
             givens={
                 self.input: train_x[index * batch_size:(index+1) * batch_size],
                 y: train_y[index * batch_size:(index + 1) * batch_size]})
-
-        # print min_informative_str(self.y_pred)
-        
-        # if we choose other than MSE, we need to change that here        
         validate_model = theano.function(inputs=[index],
             outputs=MSE(y_pred=self.y_pred, y=y),
             givens={
                 self.input: valid_x[index * batch_size:(index+1) * batch_size],
                 y: valid_y[index * batch_size:(index + 1) * batch_size]})
-#            mode='DebugMode')
+
+        compute_var = theano.function(inputs=[index],
+            outputs=MSE(y_pred=self.y_pred, y=y),
+            givens={
+                self.input: train_x[index * batch_size:(index+1) * batch_size],
+                y: train_y[index * batch_size:(index + 1) * batch_size]})
+            
 
         # compute number of minibatches for training and validation
         n_train_batches = train_x.get_value(borrow=True).shape[0] / batch_size
@@ -207,7 +203,8 @@ class MLP(object):
 
         total_training_costs = []
         total_validation_costs = []
-
+        total_validation_NLL = []
+        
         lr_time = 0
         lr_step = learning_rate / ((train_x.get_value().shape[0]*1.0/batch_size)*(n_epochs-30))
         lr_val = learning_rate
@@ -233,19 +230,27 @@ class MLP(object):
             this_training_cost = np.mean(epoch_training_costs)
             this_validation_cost = np.mean([validate_model(i) for i
                                             in xrange(n_valid_batches)])
+            error = 0
+            for minibatch_index in xrange(n_train_batches):
+                error += compute_var(minibatch_index)
+            error /= n_train_batches
+            model_var = error
+            NLL = .5*np.log(2*np.pi*model_var) + .5
+            
             #pdb.set_trace()
             total_training_costs.append(this_training_cost)
             total_validation_costs.append(this_validation_cost)
+            total_validation_NLL.append(NLL)
             
-            print 'epoch %i, training MSE %f, validation MSE %f' %\
-            (epoch, this_training_cost,this_validation_cost)
+            print 'epoch %i, training MSE %f, validation MSE %f, NLL %f' %\
+            (epoch, this_training_cost, this_validation_cost, NLL)
 
         end_time = time.clock()
 
         print "Training took %.2f minutes..."%((end_time-start_time)/60.)
 
         #return losses and parameters..
-        return total_training_costs, total_validation_costs
+        return total_training_costs, total_validation_costs,total_validation_NLL
         
         
     def save_model(self,filename='MLP.save',
@@ -284,7 +289,5 @@ def MSE(y_pred, y):
     :param y: corresponds to a vector that gives the target for each example
     
     """
-    # using dimshuffle to convert the batch output from (batch_size,) to
-    # column vector (batch_size,1) so it aligns with the network output
-    #return T.mean((y_pred - y.dimshuffle(0,'x')) ** 2)
     return T.mean((y_pred - y) ** 2)
+

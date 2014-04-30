@@ -4,18 +4,117 @@ import sys
 from scikits.talkbox import segment_axis
 import numpy as np
 
+def build_aa_dataset(in_samples, out_samples, shift, n_train=100, n_valid=10):
+    aa_seqs = np.load('/data/lisa/data/timit/readable/per_phone/wav_aa.npy')
+    
+    mean = np.mean(np.hstack(aa_seqs))
+    std = np.std(np.hstack(aa_seqs))
+    print "mean:%f , std:%f"%(mean,std)
+    aa_max,aa_min = np.max(np.hstack(aa_seqs)), np.min(np.hstack(aa_seqs))
+
+    norm_seqs = np.asarray([(seq.astype('float32')-mean)/std \
+                            for seq in aa_seqs])
+    # n_seq = norm_seqs.shape[0]
+    # n_train = n_seq*9/10
+    # train_aa_seqs = norm_seqs[:n_train]
+    # valid_aa_seqs = norm_seqs[n_train:]
+
+    # n_train = 100
+    # n_valid = 10
+    train_aa_seqs = norm_seqs[:n_train]
+    valid_aa_seqs = norm_seqs[n_train:n_train+n_valid]
+    
+    print 'train sequences:', train_aa_seqs.shape[0]
+    print 'valid sequences:', valid_aa_seqs.shape[0]
+
+    frame_len = in_samples + out_samples
+    overlap = frame_len - shift
+    
+    train_samples = []
+    valid_samples = []
+    
+    for wav_seq in train_aa_seqs:
+        train_samples.append(segment_axis(wav_seq, frame_len, overlap))
+    train_samples = np.vstack(train_samples[:])
+
+    np.random.seed(123)
+    train_samples = np.random.permutation(train_samples)
+    
+    for wav_seq in valid_aa_seqs:
+        valid_samples.append(segment_axis(wav_seq, frame_len, overlap))
+    valid_samples = np.vstack(valid_samples[:])
+        
+    print 'train examples:', train_samples.shape
+    print 'valid examples:', valid_samples.shape
+    train_x = train_samples[:,:in_samples]
+    train_y = train_samples[:,in_samples:]
+    print train_x.shape, train_y.shape
+
+    valid_x = valid_samples[:,:in_samples]
+    valid_y = valid_samples[:,in_samples:]
+    print valid_x.shape, valid_y.shape
+
+
+    return utils.shared_dataset(train_x), \
+           utils.shared_dataset(train_y), \
+           utils.shared_dataset(valid_x), \
+           utils.shared_dataset(valid_y)
+
+    
+def build_one_user_data(dataset, in_samples, out_samples, shift,
+                        win_width, shuffle, usr_id=0):
+    """a function that builds train and validation set for one user
+    in the training set"""
+
+    print "building datasets for user %d"%usr_id
+
+    subset = 'train'
+    train_wav_seqs = dataset.train_raw_wav[usr_id*10:usr_id*10+9]
+    train_seqs_to_phns = dataset.train_seq_to_phn[usr_id*10:usr_id*10+9]
+    
+    train_x, train_y1, train_y2 = \
+        _build_frames_w_phn(dataset, subset, 
+                            train_wav_seqs, train_seqs_to_phns,
+                            in_samples, out_samples, shift,
+                            win_width, shuffle)
+
+    valid_wav_seqs = dataset.train_raw_wav[usr_id*10+9:(usr_id+1)*10]
+    valid_seqs_to_phns = dataset.train_seq_to_phn[usr_id*10+9:(usr_id+1)*10]
+
+    #import pdb; pdb.set_trace()
+    valid_x, valid_y1, valid_y2 = \
+        _build_frames_w_phn(dataset, subset,
+                            valid_wav_seqs, valid_seqs_to_phns,
+                            in_samples, out_samples, shift,
+                            win_width, shuffle)
+
+    
+    return train_x, train_y1, train_y2, valid_x, valid_y1, valid_y2
         
 def build_data_sets(dataset, subset, n_spkr, n_utts,
                     in_samples, out_samples, shift,
                     win_width, shuffle):
-    """builds data sets for training/validating/testing the models"""
+    """general function that builds data sets for training/validating/testing
+    the models from the corresponding dataset in TIMIT"""
 
     print "building %s dataset..."%subset
-    
-    wav_seqs = dataset.__dict__[subset+"_raw_wav"][0:n_utts*n_spkr]
-    norm_seqs = utils.normalize(wav_seqs)
 
+    wav_seqs = dataset.__dict__[subset+"_raw_wav"][0:n_utts*n_spkr]
     seqs_to_phns = dataset.__dict__[subset+"_seq_to_phn"][0:n_utts*n_spkr]
+    
+    return _build_frames_w_phn(dataset, subset, wav_seqs, seqs_to_phns,
+                               in_samples, out_samples, shift,
+                               win_width, shuffle)
+
+
+def _build_frames_w_phn(dataset, subset, wav_seqs, seqs_to_phns,
+                        in_samples, out_samples, shift,
+                        win_width, shuffle):
+        
+    #import pdb; pdb.set_trace()
+    norm_seqs = utils.standardize(wav_seqs)
+    #norm_seqs = utils.normalize(wav_seqs)
+    
     frame_len = in_samples + out_samples
     overlap = frame_len - shift
     
@@ -100,8 +199,6 @@ def build_data_sets(dataset, subset, n_spkr, n_utts,
                            samples_data[:,in_samples:], #out1
                            shift_data.reshape(shift_data.shape[0],1)]) #out2
     
-    # TODO: do this more efficiently
-    # shuffle the frames so we can assume data is IID
     if shuffle:
         np.random.seed(123)
         full_data = np.random.permutation(full_data)
@@ -115,10 +212,14 @@ def build_data_sets(dataset, subset, n_spkr, n_utts,
     print 'Done'
     print 'There are %d examples in %s set'%(data_x.shape[0],subset)
 
+    print "--------------"
+    print 'data_x.shape', data_x.shape
+    print 'data_y1.shape', data_y1.shape
+    
     return utils.shared_dataset(data_x), \
            utils.shared_dataset(data_y1),\
            utils.shared_dataset(data_y2)
-    
+
     
 if __name__ == "__main__":
     
@@ -137,16 +238,19 @@ if __name__ == "__main__":
 
     
     in_samples = 240
-    out_samples = 50
-    shift = 10
+    out_samples = 1
+    shift = 1
     win_width = 2
-    n_spkr = 1
-    n_utts = 10
-    shuffle = True
+    # n_spkr = 1
+    # n_utts = 10
+    shuffle = False
     # each training example has 'in_sample' inputs and 'out_samples' output
     # and examples are shifted by 'shift'
-    build_data_sets(dataset, 'train', n_spkr, n_utts,
-                    in_samples, out_samples, shift,
-                    win_width,shuffle)
+    build_one_user_data(dataset, in_samples, out_samples, shift,
+                        win_width, shuffle)
 
-    
+    ## code for loading AA data
+    # in_samples = 240
+    # out_samples = 1
+    # shift = 1
+    # build_aa_dataset(in_samples, out_samples, shift)
