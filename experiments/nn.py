@@ -1,4 +1,4 @@
-B1;3400;0c"""
+"""
 This script is a collection of objects and methods used for MLPs: inspired from Theano MLP tutorial http://deeplearning.net/tutorial
 """
 __docformat__ = 'restructedtext en'
